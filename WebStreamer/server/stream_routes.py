@@ -57,7 +57,9 @@ async def stream_handler(request: web.Request):
         encrypted_code = request.match_info["path"]
         logging.debug(f"Encrypted code Got: {encrypted_code}")
         channel_id, message_id = decrypt(encrypted_code,key,iv)
-        return await media_streamer(request, message_id, channel_id)
+        logging.debug(f"Channel ID: {channel_id}")
+        logging.debug(f"Message ID: {message_id}")
+        return await media_streamer(request, int(message_id), int(channel_id))
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
     except FileNotFoundError as e:
