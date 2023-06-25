@@ -18,17 +18,17 @@ import base64
 import urllib.parse
 
 logging.basicConfig(level=logging.DEBUG)
+#CBC with Fix IV
+key = 'BHADOO9854752658' #16 char for AES128
+#FIX IV
+iv =  'CLOUD54158954721'.encode('utf-8') #16 char for AES128
 
-async def decrypt_code(encrypted_code, key):
-    logging.debug(f"Encrypted code in decrypt fun: {encrypted_code}")
-    decoded_code = urllib.parse.unquote(encrypted_code)
-    logging.debug(f"decoded_code code in decrypt fun: {decoded_code}")
-    ciphertext = base64.b64decode(encrypted_code)
-    logging.debug(f"ciphertext code in decrypt fun: {ciphertext}")
-    cipher = AES.new(key, AES.MODE_ECB)
-    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode('utf-8')
-    logging.debug(f"plaintext code in decrypt fun: {plaintext}")
-    channel_id, message_id = map(int, plaintext.split('|'))
+def decrypt(enc, key, iv):
+    enc = base64.b64decode(enc)
+    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    decrypted = unpad(cipher.decrypt(enc), 16)
+    decrypted_str = decrypted.decode('utf-8')
+    channel_id, message_id = decrypted_str.split('|')
     return channel_id, message_id
 
 routes = web.RouteTableDef()
@@ -56,7 +56,7 @@ async def stream_handler(request: web.Request):
         keybase = b"mkycctydbxdtlbqz"
         encrypted_code = request.match_info["path"]
         logging.debug(f"Encrypted code Got: {encrypted_code}")
-        channel_id, message_id = await decrypt_code(encrypted_code, keybase)
+        channel_id, message_id = decrypt(encrypted_code,key,iv)
         return await media_streamer(request, message_id, channel_id)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
