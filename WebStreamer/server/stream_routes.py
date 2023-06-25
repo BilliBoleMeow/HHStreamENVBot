@@ -18,11 +18,12 @@ import base64
 import urllib.parse
 
 def decrypt_code(encrypted_code, key):
+    logging.debug(f"Encrypted code in decrypt fun: {encrypted_code}")
     ciphertext = base64.b64decode(encrypted_code)
-    
+    logging.debug(f"ciphertext code in decrypt fun: {ciphertext}")
     cipher = AES.new(key, AES.MODE_ECB)
     plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode('utf-8')
-    
+    logging.debug(f"plaintext code in decrypt fun: {plaintext}")
     channel_id, message_id = map(int, plaintext.split('|'))
     return channel_id, message_id
 
@@ -45,11 +46,12 @@ async def root_route_handler(_):
     )
 
 
-@routes.get("/{encrypted_code:.+}", allow_head=True)
+@routes.get("/{path:.*}", allow_head=True)
 async def stream_handler(request: web.Request):
     try:
         keybase = b"mkycctydbxdtlbqz"
-        encrypted_code = request.match_info["encrypted_code"]
+        encrypted_code = request.match_info["path"]
+        logging.debug(f"Encrypted code Got: {encrypted_code}")
         channel_id, message_id = decrypt_code(encrypted_code, keybase)
         return await media_streamer(request, message_id, channel_id)
     except InvalidHash as e:
