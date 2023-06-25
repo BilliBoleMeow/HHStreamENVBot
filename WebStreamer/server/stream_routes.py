@@ -17,6 +17,16 @@ from Crypto.Util.Padding import unpad
 import base64
 import urllib.parse
 
+def decrypt_code(encrypted_code, key):
+    decoded_code = urllib.parse.unquote(encrypted_code)
+    ciphertext = base64.b64decode(decoded_code)
+    
+    cipher = AES.new(key, AES.MODE_ECB)
+    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
+    
+    channel_id, message_id = map(int, plaintext.split('|'))
+    return channel_id, message_id
+
 routes = web.RouteTableDef()
 @routes.get("/", allow_head=True)
 async def root_route_handler(_):
@@ -36,7 +46,7 @@ async def root_route_handler(_):
     )
 
 
-@routes.get("/dl/{encrypted_code}", allow_head=True)
+@routes.get("/{encrypted_code:.+}", allow_head=True)
 async def stream_handler(request: web.Request):
     try:
         keybase = b"mkycctydbxdtlbqz"
@@ -51,7 +61,9 @@ async def stream_handler(request: web.Request):
         pass
     except Exception as e:
         logging.critical(e.with_traceback(None))
-        raise web.HTTPInternalServerError(text=str("Something went Wrong, go to bot and retry with new file."))
+        error_message = str(e)
+        logging.critical(error_message)
+        raise web.HTTPInternalServerError(text=error_message)
 
 class_cache = {}
 
