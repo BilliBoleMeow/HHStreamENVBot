@@ -18,7 +18,6 @@ import base64
 import urllib.parse
 
 routes = web.RouteTableDef()
-keybase = "mkycctydbxdtlbqz"
 @routes.get("/", allow_head=True)
 async def root_route_handler(_):
     return web.json_response(
@@ -40,6 +39,7 @@ async def root_route_handler(_):
 @routes.get("/dl/{encrypted_code}", allow_head=True)
 async def stream_handler(request: web.Request):
     try:
+        keybase = b"mkycctydbxdtlbqz"
         encrypted_code = request.match_info["encrypted_code"]
         channel_id, message_id = decrypt_code(encrypted_code, keybase)
         return await media_streamer(request, message_id, channel_id)
@@ -140,7 +140,7 @@ def decrypt_code(encrypted_code, key):
     decoded_code = urllib.parse.unquote(encrypted_code)
     ciphertext = base64.b64decode(decoded_code)
     
-    cipher = AES.new(key.encode(), AES.MODE_ECB)
+    cipher = AES.new(key, AES.MODE_ECB)
     plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
     
     channel_id, message_id = map(int, plaintext.split('|'))
