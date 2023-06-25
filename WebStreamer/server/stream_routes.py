@@ -18,11 +18,10 @@ import base64
 import urllib.parse
 
 def decrypt_code(encrypted_code, key):
-    decoded_code = urllib.parse.unquote(encrypted_code)
-    ciphertext = base64.b64decode(decoded_code)
+    ciphertext = base64.b64decode(encrypted_code)
     
     cipher = AES.new(key, AES.MODE_ECB)
-    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
+    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode('utf-8')
     
     channel_id, message_id = map(int, plaintext.split('|'))
     return channel_id, message_id
