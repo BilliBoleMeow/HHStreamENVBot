@@ -17,6 +17,8 @@ from Crypto.Util.Padding import unpad
 import base64
 import urllib.parse
 
+logging.basicConfig(level=logging.DEBUG)
+
 def decrypt_code(encrypted_code, key):
     logging.debug(f"Encrypted code in decrypt fun: {encrypted_code}")
     ciphertext = base64.b64decode(encrypted_code)
