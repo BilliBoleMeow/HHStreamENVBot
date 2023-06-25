@@ -12,10 +12,13 @@ from aiohttp.http_exceptions import BadStatusLine
 from WebStreamer.bot import multi_clients, work_loads
 from WebStreamer.server.exceptions import FIleNotFound, InvalidHash
 from WebStreamer import Var, utils, StartTime, __version__, StreamBot
-
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
+import base64
+import urllib.parse
 
 routes = web.RouteTableDef()
-
+keybase = "mkycctydbxdtlbq"
 @routes.get("/", allow_head=True)
 async def root_route_handler(_):
     return web.json_response(
@@ -34,20 +37,11 @@ async def root_route_handler(_):
     )
 
 
-@routes.get(r"/{path:\S+}", allow_head=True)
+@routes.get("/dl/{encrypted_code}", allow_head=True)
 async def stream_handler(request: web.Request):
-    channel_id = Var.BIN_CHANNEL
     try:
-        path = request.match_info["path"]
-        match = re.search(r"^([a-zA-Z0-9_-]{6})(\d+)$", path)
-        if match:
-            message_id = int(match.group(2))
-        else:
-            match = re.search(r"^(\d+)/(\d+)$", path)
-            if match:
-                message_id = int(match.group(2))
-            else:
-                message_id = int(re.search(r"(\d+)(?:\/\S+)?", path).group(1))
+        encrypted_code = request.match_info["encrypted_code"]
+        channel_id, message_id = decrypt_code(encrypted_code, keybase)
         return await media_streamer(request, message_id, channel_id)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
@@ -141,3 +135,13 @@ async def media_streamer(request: web.Request, message_id: int, channel_id):
             "Accept-Ranges": "bytes",
         },
     )
+
+def decrypt_code(encrypted_code, key):
+    decoded_code = urllib.parse.unquote(encrypted_code)
+    ciphertext = base64.b64decode(decoded_code)
+    
+    cipher = AES.new(key.encode(), AES.MODE_ECB)
+    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
+    
+    channel_id, message_id = map(int, plaintext.split('|'))
+    return channel_id, message_id
