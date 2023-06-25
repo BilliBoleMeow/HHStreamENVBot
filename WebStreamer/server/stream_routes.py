@@ -19,8 +19,10 @@ import urllib.parse
 
 logging.basicConfig(level=logging.DEBUG)
 
-def decrypt_code(encrypted_code, key):
+async def decrypt_code(encrypted_code, key):
     logging.debug(f"Encrypted code in decrypt fun: {encrypted_code}")
+    decoded_code = urllib.parse.unquote(encrypted_code)
+    logging.debug(f"decoded_code code in decrypt fun: {decoded_code}")
     ciphertext = base64.b64decode(encrypted_code)
     logging.debug(f"ciphertext code in decrypt fun: {ciphertext}")
     cipher = AES.new(key, AES.MODE_ECB)
@@ -54,7 +56,7 @@ async def stream_handler(request: web.Request):
         keybase = b"mkycctydbxdtlbqz"
         encrypted_code = request.match_info["path"]
         logging.debug(f"Encrypted code Got: {encrypted_code}")
-        channel_id, message_id = decrypt_code(encrypted_code, keybase)
+        channel_id, message_id = await decrypt_code(encrypted_code, keybase)
         return await media_streamer(request, message_id, channel_id)
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
