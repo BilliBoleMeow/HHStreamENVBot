@@ -66,7 +66,7 @@ async def stream_handler(request: web.Request):
         # Checking if the link has expired
         current_time = int(time.time())
         if expiration_time < current_time:
-            raise web.HTTPInternalServerError(text="Link is Expired")
+            raise web.HTTPForbidden(text="Link is Expired")
 
         return await media_streamer(request, int(message_id), int(channel_id))
     except InvalidHash as e:
@@ -163,13 +163,3 @@ async def media_streamer(request: web.Request, message_id: int, channel_id):
             "Accept-Ranges": "bytes",
         },
     )
-
-def decrypt_code(encrypted_code, key):
-    decoded_code = urllib.parse.unquote(encrypted_code)
-    ciphertext = base64.b64decode(decoded_code)
-    
-    cipher = AES.new(key, AES.MODE_ECB)
-    plaintext = unpad(cipher.decrypt(ciphertext), AES.block_size).decode()
-    
-    channel_id, message_id = map(int, plaintext.split('|'))
-    return channel_id, message_id
