@@ -66,7 +66,7 @@ async def stream_handler(request: web.Request):
         # Checking if the link has expired
         current_time = int(time.time())
         if expiration_time < current_time:
-            raise web.HTTPForbidden(text="Link is Expired")
+            raise web.HTTPInternalServerError(text="Link is Expired")
 
         return await media_streamer(request, int(message_id), int(channel_id))
     except InvalidHash as e:
