@@ -58,7 +58,7 @@ async def stream_handler(request: web.Request):
         encrypted_code = request.match_info["path"]
         logging.debug(f"Encrypted code Got: {encrypted_code}")
         # Extracting the third part (time in epoch) from the encrypted code
-        channel_id, message_id, expiration_time = decrypt_and_get_time(encrypted_code, key, iv)
+        channel_id, message_id, expiration_time = decrypt(encrypted_code, key, iv)
         logging.debug(f"Channel ID: {channel_id}")
         logging.debug(f"Message ID: {message_id}")
         logging.debug(f"Expiration Time: {expiration_time}")
