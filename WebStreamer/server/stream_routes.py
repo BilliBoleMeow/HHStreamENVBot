@@ -7,6 +7,7 @@ import math
 import logging
 import secrets
 import mimetypes
+import time
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
 from WebStreamer.bot import multi_clients, work_loads
@@ -28,8 +29,8 @@ def decrypt(enc, key, iv):
     cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     decrypted = unpad(cipher.decrypt(enc), 16)
     decrypted_str = decrypted.decode('utf-8')
-    channel_id, message_id = decrypted_str.split('|')
-    return channel_id, message_id
+    channel_id, message_id, expiration_time = decrypted_str.split('|')
+    return channel_id, message_id, int(expiration_time)
 
 routes = web.RouteTableDef()
 @routes.get("/", allow_head=True)
@@ -56,9 +57,17 @@ async def stream_handler(request: web.Request):
         keybase = b"mkycctydbxdtlbqz"
         encrypted_code = request.match_info["path"]
         logging.debug(f"Encrypted code Got: {encrypted_code}")
-        channel_id, message_id = decrypt(encrypted_code,key,iv)
+        # Extracting the third part (time in epoch) from the encrypted code
+        channel_id, message_id, expiration_time = decrypt_and_get_time(encrypted_code, key, iv)
         logging.debug(f"Channel ID: {channel_id}")
         logging.debug(f"Message ID: {message_id}")
+        logging.debug(f"Expiration Time: {expiration_time}")
+
+        # Checking if the link has expired
+        current_time = int(time.time())
+        if expiration_time < current_time:
+            raise web.HTTPForbidden(text="Link is Expired")
+
         return await media_streamer(request, int(message_id), int(channel_id))
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
