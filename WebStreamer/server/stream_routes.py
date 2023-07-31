@@ -17,12 +17,28 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 import base64
 import urllib.parse
+import hashlib
 
 logging.basicConfig(level=logging.DEBUG)
 #CBC with Fix IV
 key = 'BHADOO9854752658' #16 char for AES128
 #FIX IV
 iv =  'CLOUD54158954721'.encode('utf-8') #16 char for AES128
+
+SECRET_KEY = '647e2c1ac884418b5c270862a9a484105e88b11f097fa9d5ddd09eb4c53737bd'
+
+def verify_sha256_key(channel_id, file_id, expiration_time, sha256_key):
+    try:
+        # Concatenate the components with the secret key
+        data_to_hash = f"{channel_id}|{file_id}|{expiration_time}|{SECRET_KEY}".encode('utf-8')
+
+        # Calculate the SHA-256 hash
+        sha256_hash = hashlib.sha256(data_to_hash).hexdigest()
+
+        # Compare the calculated hash with the received sha256_key
+        return sha256_hash == sha256_key
+    except Exception:
+        return False
 
 def decrypt(enc, key, iv):
     enc = base64.b64decode(enc)
@@ -57,18 +73,24 @@ async def stream_handler(request: web.Request):
         keybase = b"mkycctydbxdtlbqz"
         encrypted_code = urllib.parse.unquote(request.match_info['path'])
         logging.debug(f"Encrypted code Got: {encrypted_code}")
-        # Extracting the third part (time in epoch) from the encrypted code
-        channel_id, message_id, expiration_time = decrypt(encrypted_code, key, iv)
-        logging.debug(f"Channel ID: {channel_id}")
-        logging.debug(f"Message ID: {message_id}")
-        logging.debug(f"Expiration Time: {expiration_time}")
+
+        # Splitting the received path into parts
+        parts = encrypted_code.split("/")
+        if len(parts) != 4:
+            raise web.HTTPBadRequest(text="Invalid path format")
+
+        channel_id, file_id, expiration_time, sha256_key = parts
 
         # Checking if the link has expired
         current_time = int(time.time())
-        if expiration_time < current_time:
+        if int(expiration_time) < current_time:
             raise web.HTTPForbidden(text="Link is Expired")
 
-        return await media_streamer(request, int(message_id), int(channel_id))
+        # Perform the integrity check using sha256_key (replace this with your own integrity check logic)
+        if not verify_sha256_key(channel_id, file_id, expiration_time, sha256_key):
+            raise web.HTTPForbidden(text="Integrity check failed")
+
+        return await media_streamer(request, int(file_id), int(channel_id))
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
     except FileNotFoundError as e:
