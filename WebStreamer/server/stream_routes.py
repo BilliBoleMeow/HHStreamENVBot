@@ -51,11 +51,11 @@ async def root_route_handler(_):
     )
 
 
-@routes.get("/{path:.*}", allow_head=True)
-async def stream_handler(request: web.Request):
+@routes.get("/{path:path}", allow_head=True)
+async def stream_handler(path: str):
     try:
         keybase = b"mkycctydbxdtlbqz"
-        encrypted_code = request.match_info["path"]
+        encrypted_code =  urllib.parse.unquote(path)
         logging.debug(f"Encrypted code Got: {encrypted_code}")
         # Extracting the third part (time in epoch) from the encrypted code
         channel_id, message_id, expiration_time = decrypt(encrypted_code, key, iv)
