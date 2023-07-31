@@ -51,7 +51,7 @@ async def root_route_handler(_):
     )
 
 
-@routes.get("/{path:path}", allow_head=True)
+@routes.get("/{path:.*}", allow_head=True)
 async def stream_handler(request: web.Request):
     try:
         keybase = b"mkycctydbxdtlbqz"
