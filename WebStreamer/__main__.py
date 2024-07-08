@@ -2,14 +2,16 @@
 # Coding : Jyothis Jayanth [@EverythingSuckz]
 
 import sys
+import asyncio
 import logging
 from .vars import Var
 from aiohttp import web
 from pyrogram import idle
-from WebStreamer import bot_loop, utils
+from WebStreamer import utils
 from WebStreamer import StreamBot
 from WebStreamer.server import web_server
 from WebStreamer.bot.clients import initialize_clients
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +30,7 @@ server = web.AppRunner(web_server())
 #     loop = asyncio.new_event_loop()
 #     asyncio.set_event_loop(loop)
 # else:
-
+loop = asyncio.get_event_loop()
 
 async def start_services():
     print()
@@ -69,12 +71,12 @@ async def cleanup():
 
 if __name__ == "__main__":
     try:
-        bot_loop.run_until_complete(start_services())
+        loop.run_until_complete(start_services())
     except KeyboardInterrupt:
         pass
     except Exception as err:
         logging.error(err.with_traceback(None))
     finally:
-        bot_loop.run_until_complete(cleanup())
-        bot_loop.stop()
+        loop.run_until_complete(cleanup())
+        loop.stop()
         print("------------------------ Stopped Services ------------------------")
