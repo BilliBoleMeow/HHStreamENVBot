@@ -3,8 +3,12 @@
 
 
 from ..vars import Var
-from pyrogram import Client
+from pyrogram import Client, utils
 from os import getcwd
+
+#peer id invalid fix for new channels
+utils.MIN_CHANNEL_ID = -1002947483647
+
 
 StreamBot = Client(
     name="WebStreamer",
