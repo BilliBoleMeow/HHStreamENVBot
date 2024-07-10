@@ -10,43 +10,20 @@ import mimetypes
 import time
 from aiohttp import web
 from aiohttp.http_exceptions import BadStatusLine
+from WebStreamer import bot_loop
+from functools import partial
 from WebStreamer.bot import multi_clients, work_loads
 from WebStreamer.server.exceptions import FIleNotFound, InvalidHash
 from WebStreamer import Var, utils, StartTime, __version__, StreamBot
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import unpad
-import base64
+from concurrent.futures import ThreadPoolExecutor
 import urllib.parse
-import hashlib
 
-logging.basicConfig(level=logging.DEBUG)
-#CBC with Fix IV
-key = 'BHADOO9854752658' #16 char for AES128
-#FIX IV
-iv =  'CLOUD54158954721'.encode('utf-8') #16 char for AES128
+THREADPOOL = ThreadPoolExecutor(max_workers=1000)
 
-SECRET_KEY = '647e2c1ac884418b5c270862a9a484105e88b11f097fa9d5ddd09eb4c53737bd'
-
-def verify_sha256_key(channel_id, file_id, expiration_time, sha256_key):
-    try:
-        # Concatenate the components with the secret key
-        data_to_hash = f"{channel_id}|{file_id}|{expiration_time}|{SECRET_KEY}".encode('utf-8')
-
-        # Calculate the SHA-256 hash
-        sha256_hash = hashlib.sha256(data_to_hash).hexdigest()
-
-        # Compare the calculated hash with the received sha256_key
-        return sha256_hash == sha256_key
-    except Exception:
-        return False
-
-def decrypt(enc, key, iv):
-    enc = base64.b64decode(enc)
-    cipher = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
-    decrypted = unpad(cipher.decrypt(enc), 16)
-    decrypted_str = decrypted.decode('utf-8')
-    channel_id, message_id, expiration_time = decrypted_str.split('|')
-    return channel_id, message_id, int(expiration_time)
+async def sync_to_async(func, *args, wait=True, **kwargs):
+    pfunc = partial(func, *args, **kwargs)
+    future = bot_loop.run_in_executor(THREADPOOL, pfunc)
+    return await future if wait else future
 
 routes = web.RouteTableDef()
 @routes.get("/", allow_head=True)
@@ -66,31 +43,26 @@ async def root_route_handler(_):
         }
     )
 
-
 @routes.get("/{path:.*}", allow_head=True)
 async def stream_handler(request: web.Request):
     try:
-        keybase = b"mkycctydbxdtlbqz"
         encrypted_code = urllib.parse.unquote(request.match_info['path'])
         logging.debug(f"Encrypted code Got: {encrypted_code}")
 
-        # Splitting the received path into parts
         parts = encrypted_code.split("/")
         if len(parts) != 4:
             raise web.HTTPBadRequest(text="Invalid path format")
 
-        channel_id, file_id, expiration_time, sha256_key = parts
-
-        # Checking if the link has expired
+        cid, fid, expiration_time, sha256_key = parts
         current_time = int(time.time())
         if int(expiration_time) < current_time:
             raise web.HTTPForbidden(text="Link is Expired")
 
-        # Perform the integrity check using sha256_key (replace this with your own integrity check logic)
-        if not verify_sha256_key(channel_id, file_id, expiration_time, sha256_key):
+        sha256_verified = await sync_to_async(utils.verify_sha256_key, cid, fid, expiration_time, sha256_key)
+        if not sha256_verified:
             raise web.HTTPForbidden(text="Integrity check failed")
 
-        return await media_streamer(request, int(file_id), int(channel_id))
+        return await media_streamer(request, int(fid), int(cid))
     except InvalidHash as e:
         raise web.HTTPForbidden(text=e.message)
     except FileNotFoundError as e:
@@ -98,7 +70,6 @@ async def stream_handler(request: web.Request):
     except (AttributeError, BadStatusLine, ConnectionResetError):
         pass
     except Exception as e:
-        logging.critical(e.with_traceback(None))
         error_message = str(e)
         logging.critical(error_message)
         raise web.HTTPInternalServerError(text=error_message)
