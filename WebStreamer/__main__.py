@@ -3,6 +3,7 @@
 
 import sys
 import logging
+import asyncio
 from .vars import Var
 from aiohttp import web
 from pyrogram import idle

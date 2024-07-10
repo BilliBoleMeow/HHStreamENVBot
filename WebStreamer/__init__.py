@@ -3,7 +3,6 @@
 from time import time
 from .vars import Var
 from WebStreamer.bot import StreamBot
-
 import asyncio
 
 bot_loop = asyncio.get_event_loop()
